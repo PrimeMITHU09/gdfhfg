@@ -1,7 +1,10 @@
 import logging
 import re
 import sys
+import os
 import asyncio
+import threading
+from http.server import HTTPServer, BaseHTTPRequestHandler
 
 # Configure UTF-8 for Windows console
 if sys.stdout and hasattr(sys.stdout, "reconfigure"):
@@ -792,9 +795,39 @@ async def post_init(application):
         logger.warning(f"Could not set bot commands: {e}")
 
 
+class RenderHealthHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.send_header("Content-type", "text/plain")
+        self.end_headers()
+        self.wfile.write(b"OK - H143 Proxy Checker Bot is Live & Healthy!")
+
+    def log_message(self, format, *args):
+        pass  # Suppress console logging
+
+
+def start_render_health_server():
+    """
+    Starts a background HTTP health server for Render Web Service.
+    Render requires an open port to pass health checks and prevent deployment timeout.
+    """
+    port_str = os.environ.get("PORT")
+    if not port_str:
+        return
+    try:
+        port = int(port_str)
+        server = HTTPServer(("0.0.0.0", port), RenderHealthHandler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        logger.info(f"Render Web Service Health Server successfully listening on 0.0.0.0:{port}")
+    except Exception as e:
+        logger.warning(f"Could not start Render health server: {e}")
+
+
 def main():
     """Starts the Telegram Bot."""
     init_db()
+    start_render_health_server()
 
     if not BOT_TOKEN:
         print("\n" + "=" * 60)

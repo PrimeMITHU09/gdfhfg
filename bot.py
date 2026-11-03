@@ -27,6 +27,7 @@ from telegram import (
     BotCommand,
     MenuButtonCommands,
 )
+from telegram.request import HTTPXRequest
 from telegram.ext import (
     ApplicationBuilder,
     CommandHandler,
@@ -838,7 +839,19 @@ def main():
         return
 
     logger.info("Initializing H143 Proxy Checker Bot...")
-    app = ApplicationBuilder().token(BOT_TOKEN).post_init(post_init).build()
+    request_config = HTTPXRequest(
+        connect_timeout=30.0,
+        read_timeout=30.0,
+        write_timeout=30.0,
+        pool_timeout=10.0,
+    )
+    app = (
+        ApplicationBuilder()
+        .token(BOT_TOKEN)
+        .request(request_config)
+        .post_init(post_init)
+        .build()
+    )
 
     # Handlers
     app.add_handler(CommandHandler("start", start_command))
@@ -857,7 +870,12 @@ def main():
     print("Press Ctrl+C to stop the bot.")
     print("=" * 60 + "\n")
 
-    app.run_polling()
+    app.run_polling(
+        bootstrap_retries=-1,
+        poll_interval=1.0,
+        timeout=30,
+        drop_pending_updates=True
+    )
 
 
 if __name__ == "__main__":
